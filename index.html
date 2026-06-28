@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>FreshScan — Fruit Freshness Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:      #f5f2eb;
+      --surface: #edeade;
+      --card:    #ffffff;
+      --border:  #ddd8cc;
+      --text:    #1a1a17;
+      --muted:   #7a7a6e;
+      --accent:  #3d6b3f;
+      --amber:   #e8a030;
+      --fresh:   #3d6b3f;
+      --rotten:  #b94040;
+      --radius:  16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh; min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .nav-logo { font-family: 'Instrument Serif', serif; font-size: 1.3rem; color: var(--text); }
+    .nav-badge {
+      font-size: 0.65rem; background: var(--surface); color: var(--muted);
+      padding: 0.25rem 0.7rem; border-radius: 100px; border: 1px solid var(--border);
+    }
+
+    /* ── HERO ────────────────────────────────────────────── */
+    .hero {
+      padding: 2.5rem 1.2rem 1.5rem;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 1rem; display: block;
+    }
+    .hero h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 2.6rem; line-height: 1.08; letter-spacing: -1.5px;
+      margin-bottom: 0.8rem;
+    }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .hero p { font-size: 0.92rem; color: var(--muted); line-height: 1.6; margin-bottom: 1.8rem; }
+
+    /* Stats */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 0; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      background: var(--card); margin-bottom: 0;
+    }
+    .stat {
+      padding: 0.8rem 0.4rem; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-num {
+      font-family: 'Instrument Serif', serif; font-size: 1.2rem;
+      color: var(--text); display: block; line-height: 1; margin-bottom: 0.15rem;
+    }
+    .stat-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .divider { height: 1px; background: var(--border); margin: 1.8rem 0 0; }
+
+    /* ── SCANNER ─────────────────────────────────────────── */
+    .scanner-section { padding: 1.5rem 1rem 3rem; }
+
+    .section-label {
+      font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .upload-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.05); margin-bottom: 1rem;
+    }
+
+    /* Drop zone */
+    .drop-label {
+      display: block; padding: 2rem 1.2rem; text-align: center;
+      cursor: pointer; border-bottom: 1px solid var(--border);
+      transition: background 0.2s; -webkit-user-select: none; user-select: none;
+    }
+    .drop-label:active { background: var(--surface); }
+    #fileInput { display: none; }
+    .drop-icon { font-size: 2.8rem; display: block; margin-bottom: 0.8rem; }
+    .drop-label h2 {
+      font-family: 'Instrument Serif', serif; font-size: 1.2rem;
+      font-weight: 400; margin-bottom: 0.3rem;
+    }
+    .drop-label p { color: var(--muted); font-size: 0.82rem; }
+
+    /* Preview */
+    .preview-wrap {
+      display: none; padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center; gap: 0.8rem;
+    }
+    .preview-wrap.visible { display: flex; }
+    .preview-img {
+      width: 64px; height: 64px; object-fit: cover;
+      border-radius: 10px; border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .preview-meta { flex: 1; min-width: 0; }
+    .preview-name {
+      font-size: 0.85rem; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem;
+    }
+    .preview-size { font-size: 0.72rem; color: var(--muted); }
+    .btn-clear {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 0.35rem 0.65rem; cursor: pointer;
+      font-size: 0.75rem; transition: all 0.2s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-clear:active { border-color: var(--rotten); color: var(--rotten); }
+
+    /* Fruit chips */
+    .chips-row {
+      padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--border);
+    }
+    .chips-label {
+      font-size: 0.75rem; color: var(--muted); font-weight: 500;
+      display: block; margin-bottom: 0.6rem;
+    }
+    .chips {
+      display: flex; gap: 0.4rem; flex-wrap: wrap;
+    }
+    .chip {
+      padding: 0.4rem 0.85rem; border-radius: 100px;
+      border: 1px solid var(--border); font-size: 0.8rem;
+      cursor: pointer; background: transparent; color: var(--muted);
+      transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 36px; display: flex; align-items: center;
+    }
+    .chip:active, .chip.active {
+      background: var(--text); border-color: var(--text); color: var(--bg);
+    }
+
+    .chips-note { font-size: 0.72rem; color: var(--rotten); padding: 0.4rem 1.2rem 0; display: none; }
+    .chips-note.visible { display: block; }
+
+    /* Scan button */
+    .scan-row { padding: 1rem 1.2rem; }
+    .btn-scan {
+      width: 100%; padding: 1rem;
+      background: var(--accent); border: none; border-radius: 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600;
+      color: #fff; cursor: pointer; transition: opacity 0.2s;
+      min-height: 52px;
+    }
+    .btn-scan:active:not(:disabled) { opacity: 0.82; }
+    .btn-scan:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── RESULT CARD ─────────────────────────────────────── */
+    .result-card {
+      display: none; background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+      animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    .result-card.visible { display: block; }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .result-top {
+      padding: 1.5rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border); gap: 0.8rem;
+    }
+    .result-fruit-info { display: flex; align-items: center; gap: 0.7rem; }
+    .result-emoji { font-size: 2.2rem; flex-shrink: 0; }
+    .result-fruit-name {
+      font-family: 'Instrument Serif', serif; font-size: 1.5rem;
+      line-height: 1; margin-bottom: 0.2rem;
+    }
+    .result-sub { font-size: 0.72rem; color: var(--muted); }
+    .result-verdict {
+      font-family: 'Instrument Serif', serif; font-size: 1rem;
+      font-style: italic; padding: 0.45rem 1rem;
+      border-radius: 100px; border: 1.5px solid; white-space: nowrap; flex-shrink: 0;
+    }
+    .result-verdict.fresh  { color: var(--fresh);  border-color: var(--fresh);  background: #f0f7f0; }
+    .result-verdict.rotten { color: var(--rotten); border-color: var(--rotten); background: #fdf0f0; }
+
+    /* Big verdict banner */
+    .verdict-banner {
+      padding: 1.5rem 1.2rem; text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .verdict-big {
+      font-family: 'Instrument Serif', serif; font-size: 3rem;
+      font-weight: 400; line-height: 1;
+    }
+    .verdict-big.fresh  { color: var(--fresh); }
+    .verdict-big.rotten { color: var(--rotten); }
+    .verdict-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+    .conf-item { padding: 1.2rem; border-bottom: 1px solid var(--border); }
+    .conf-label-text {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin-bottom: 0.5rem;
+    }
+    .conf-num {
+      font-family: 'Instrument Serif', serif; font-size: 2.5rem;
+      color: var(--text); margin-bottom: 0.6rem; line-height: 1;
+    }
+    .bar-bg { height: 4px; background: var(--surface); border-radius: 4px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; border-radius: 4px; width: 0%;
+      transition: width 1s cubic-bezier(0.16,1,0.3,1); background: var(--accent);
+    }
+    .bar-fill.rotten-bar { background: var(--rotten); }
+
+    .result-actions {
+      padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .btn-act {
+      width: 100%; padding: 0.85rem; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      font-size: 0.9rem; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: all 0.15s; min-height: 48px;
+    }
+    .btn-act:active { background: var(--surface); }
+    .btn-act.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .btn-act.primary:active { opacity: 0.85; }
+
+    /* ── HOW IT WORKS ────────────────────────────────────── */
+    .how-section {
+      padding: 2rem 1.2rem 3rem;
+      border-top: 1px solid var(--border);
+    }
+    .how-label {
+      font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1.5rem;
+    }
+    .how-steps { display: flex; flex-direction: column; gap: 1.2rem; }
+    .how-step {
+      display: flex; gap: 1rem; align-items: flex-start;
+      padding: 1rem; background: var(--card);
+      border: 1px solid var(--border); border-radius: 12px;
+    }
+    .step-num-badge {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-family: 'Instrument Serif', serif; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 0.25rem; }
+    .step-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── LOADING ─────────────────────────────────────────── */
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(245,242,235,0.9); backdrop-filter: blur(6px);
+      z-index: 100; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+    }
+    .loading-overlay.visible { display: flex; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 2.5px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 0.88rem; color: var(--muted); }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text); color: var(--bg); border-radius: 100px;
+      padding: 0.65rem 1.2rem; font-size: 0.82rem; z-index: 200;
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+      white-space: nowrap; max-width: 90vw; text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 1.5rem 1.2rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.75rem; line-height: 1.8;
+    }
+    footer strong { color: var(--text); }
+
+    /* ── DESKTOP overrides ───────────────────────────────── */
+    @media (min-width: 640px) {
+      .hero { padding: 4rem 2rem 2.5rem; }
+      .hero h1 { font-size: 4.5rem; }
+      .scanner-section { padding: 2.5rem; max-width: 600px; margin: 0 auto; }
+      .how-section { max-width: 600px; margin: 0 auto; }
+      .result-actions { flex-direction: row; }
+      .how-steps { display: grid; grid-template-columns: repeat(3,1fr); }
+      .how-step { flex-direction: column; }
+      .stat-num { font-size: 1.6rem; }
+      .stats { max-width: 600px; margin: 0 auto 0; }
+      .divider { max-width: 860px; margin: 2rem auto 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Checking freshness…</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">FreshScan.</div>
+  <div class="nav-badge">DSCE · 1BPRJ208</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="hero-eyebrow">Image Processing · KNN · 90.81% Accuracy</span>
+  <h1>Freshness,<br><em>revealed.</em></h1>
+  <p>Select your fruit, upload a photo, and instantly know if it's fresh or rotten.</p>
+  <div class="stats">
+    <div class="stat"><span class="stat-num">90.81%</span><span class="stat-label">Accuracy</span></div>
+    <div class="stat"><span class="stat-num">5</span><span class="stat-label">Fruits</span></div>
+    <div class="stat"><span class="stat-num">4,789+</span><span class="stat-label">Images</span></div>
+    <div class="stat"><span class="stat-num">KNN</span><span class="stat-label">Model</span></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SCANNER -->
+<div class="scanner-section">
+  <div class="section-label">Scan a fruit</div>
+
+  <input type="file" id="fileInput" accept="image/jpeg,image/png" capture="environment"/>
+
+  <div class="upload-card">
+
+    <label class="drop-label" for="fileInput" id="dropLabel">
+      <span class="drop-icon" id="dropIcon">🍎</span>
+      <h2>Tap to upload a photo</h2>
+      <p>JPG or PNG · from camera or gallery</p>
+    </label>
+
+    <div class="preview-wrap" id="previewWrap">
+      <img class="preview-img" id="previewImg" src="" alt="preview"/>
+      <div class="preview-meta">
+        <div class="preview-name" id="previewName"></div>
+        <div class="preview-size" id="previewSize"></div>
+      </div>
+      <button class="btn-clear" id="btnClear">✕</button>
+    </div>
+
+    <div class="chips-row">
+      <span class="chips-label">Select fruit type:</span>
+      <div class="chips">
+        <button class="chip" data-fruit="banana">🍌 Banana</button>
+        <button class="chip" data-fruit="apple">🍎 Apple</button>
+        <button class="chip" data-fruit="mango">🥭 Mango</button>
+        <button class="chip" data-fruit="orange">🍊 Orange</button>
+        <button class="chip" data-fruit="strawberry">🍓 Strawberry</button>
+      </div>
+    </div>
+    <div class="chips-note" id="chipsNote">⚠ Please select a fruit type first.</div>
+
+    <div class="scan-row">
+      <button class="btn-scan" id="btnScan" disabled>Upload an image to scan</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="resultCard">
+    <div class="result-top">
+      <div class="result-fruit-info">
+        <div class="result-emoji" id="resultEmoji">🍎</div>
+        <div>
+          <div class="result-fruit-name" id="resultFruitName">—</div>
+          <div class="result-sub" id="resultSub"></div>
+        </div>
+      </div>
+      <div class="result-verdict" id="resultVerdict"></div>
+    </div>
+
+    <div class="verdict-banner">
+      <div class="verdict-big" id="verdictBig"></div>
+      <div class="verdict-sub" id="verdictSub"></div>
+    </div>
+
+    <div class="conf-item">
+      <div class="conf-label-text">Freshness Confidence</div>
+      <div class="conf-num" id="freshConf">—</div>
+      <div class="bar-bg"><div class="bar-fill" id="freshBar"></div></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn-act primary" id="btnPdf">📄 Download PDF Report</button>
+      <button class="btn-act" id="btnAgain">🔄 Scan Another</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <div class="how-label">How it works</div>
+  <div class="how-steps">
+    <div class="how-step">
+      <div class="step-num-badge">1</div>
+      <div class="step-content">
+        <div class="step-title">Select your fruit</div>
+        <div class="step-desc">Tap one of the five fruit chips — Banana, Apple, Mango, Orange, or Strawberry.</div>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num-badge">2</div>
+      <div class="step-content">
+        <div class="step-title">Upload a photo</div>
+        <div class="step-desc">Tap the upload area to take a photo or pick one from your gallery.</div>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num-badge">3</div>
+      <div class="step-content">
+        <div class="step-title">Get your result</div>
+        <div class="step-desc">Instantly see Fresh or Rotten with a confidence score. Download a PDF report of all scans.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Fruit & Vegetable Freshness Detection Using Image Processing</strong><br>
+  Prajwal Alse · Pavan Kumar KS · Pari Singh · Pranav Puranik<br>
+  Guide: Dr. Priya · DSCE · 2025–26
+</footer>
+
+<script>
+  const fileInput   = document.getElementById('fileInput');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg  = document.getElementById('previewImg');
+  const previewName = document.getElementById('previewName');
+  const previewSize = document.getElementById('previewSize');
+  const btnClear    = document.getElementById('btnClear');
+  const btnScan     = document.getElementById('btnScan');
+  const dropLabel   = document.getElementById('dropLabel');
+  const dropIcon    = document.getElementById('dropIcon');
+  const resultCard  = document.getElementById('resultCard');
+  const chipsNote   = document.getElementById('chipsNote');
+
+  let selectedFile  = null;
+  let selectedFruit = null;
+  const fruitEmoji  = { banana:'🍌', apple:'🍎', mango:'🥭', orange:'🍊', strawberry:'🍓' };
+
+  function updateScanBtn() {
+    if (selectedFile && selectedFruit) {
+      btnScan.disabled = false;
+      btnScan.textContent = '🔍 Check Freshness';
+    } else if (!selectedFile) {
+      btnScan.disabled = true;
+      btnScan.textContent = 'Upload an image to scan';
+    } else {
+      btnScan.disabled = true;
+      btnScan.textContent = 'Select a fruit type';
+    }
+  }
+
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+  // Drag & drop (desktop)
+  dropLabel.addEventListener('dragover', e => { e.preventDefault(); });
+  dropLabel.addEventListener('drop', e => {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    selectedFile = file;
+    previewImg.src = URL.createObjectURL(file);
+    previewName.textContent = file.name;
+    previewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+    previewWrap.classList.add('visible');
+    resultCard.classList.remove('visible');
+    dropIcon.textContent = '📸';
+    updateScanBtn();
+  }
+
+  btnClear.addEventListener('click', e => {
+    e.preventDefault();
+    selectedFile = null;
+    fileInput.value = '';
+    previewWrap.classList.remove('visible');
+    resultCard.classList.remove('visible');
+    dropIcon.textContent = selectedFruit ? fruitEmoji[selectedFruit] : '🍎';
+    updateScanBtn();
+  });
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedFruit = chip.dataset.fruit;
+      chipsNote.classList.remove('visible');
+      if (!selectedFile) dropIcon.textContent = fruitEmoji[selectedFruit];
+      updateScanBtn();
+    });
+  });
+
+  btnScan.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    if (!selectedFruit) { chipsNote.classList.add('visible'); return; }
+
+    showLoading();
+    const fd = new FormData();
+    fd.append('image', selectedFile);
+    fd.append('fruit_type', selectedFruit);
+
+    try {
+      const res  = await fetch('/predict', { method: 'POST', body: fd });
+      const data = await res.json();
+      hideLoading();
+      if (data.error) { showToast('❌ ' + data.error); return; }
+      showResult(data);
+    } catch {
+      hideLoading();
+      showToast('❌ Could not connect to server');
+    }
+  });
+
+  function showResult(data) {
+    const isFresh = data.label === 'FRESH';
+
+    document.getElementById('resultEmoji').textContent      = fruitEmoji[data.fruit] || '🍑';
+    document.getElementById('resultFruitName').textContent  = data.fruit.charAt(0).toUpperCase() + data.fruit.slice(1);
+    document.getElementById('resultSub').textContent        = data.timestamp;
+
+    const verdict = document.getElementById('resultVerdict');
+    verdict.textContent = isFresh ? '✓ Fresh' : '✕ Rotten';
+    verdict.className   = 'result-verdict ' + (isFresh ? 'fresh' : 'rotten');
+
+    const verdictBig = document.getElementById('verdictBig');
+    verdictBig.textContent = isFresh ? '✅ FRESH' : '🚫 ROTTEN';
+    verdictBig.className   = 'verdict-big ' + (isFresh ? 'fresh' : 'rotten');
+
+    document.getElementById('verdictSub').textContent  = isFresh
+      ? 'This fruit appears to be in good condition.'
+      : 'This fruit shows signs of spoilage.';
+
+    document.getElementById('freshConf').textContent = data.freshness_conf + '%';
+
+    const bar = document.getElementById('freshBar');
+    bar.className = 'bar-fill' + (isFresh ? '' : ' rotten-bar');
+
+    resultCard.classList.add('visible');
+    setTimeout(() => { bar.style.width = data.freshness_conf + '%'; }, 100);
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  document.getElementById('btnPdf').addEventListener('click', async () => {
+    showToast('⏳ Generating PDF…');
+    try {
+      const res = await fetch('/export-pdf');
+      if (!res.ok) { showToast('❌ PDF failed'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'Freshness_Report.pdf'; a.click();
+      URL.revokeObjectURL(url);
+      showToast('✅ PDF downloaded!');
+    } catch { showToast('❌ PDF error'); }
+  });
+
+  document.getElementById('btnAgain').addEventListener('click', () => {
+    btnClear.click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function showLoading() { document.getElementById('loadingOverlay').classList.add('visible'); }
+  function hideLoading() { document.getElementById('loadingOverlay').classList.remove('visible'); }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
